@@ -31,32 +31,39 @@ interface Ativo {
   id: string; nome: string; marca: string | null; modelo: string | null;
   numero_serial: string | null; data_garantia: string | null;
   status: "ativo" | "manutencao" | "baixado"; observacoes: string | null;
-  cliente_id: string | null; clientes?: { nome: string } | null;
+  cliente_id: string | null; contrato_id: string | null;
+  clientes?: { nome: string } | null;
+  contratos?: { numero: string; clientes?: { nome: string } | null } | null;
 }
 interface ClienteOpt { id: string; nome: string; }
+interface ContratoOpt { id: string; numero: string; cliente_id: string; clientes?: { nome: string } | null; }
 
 function AtivosPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<Ativo[]>([]);
   const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [contratos, setContratos] = useState<ContratoOpt[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Ativo | null>(null);
   const [form, setForm] = useState({
     nome: "", marca: "", modelo: "", numero_serial: "", data_garantia: "",
-    status: "ativo" as Ativo["status"], cliente_id: "none", observacoes: "",
+    status: "ativo" as Ativo["status"], cliente_id: "none", contrato_id: "none", observacoes: "",
   });
 
   async function load() {
-    const [a, c] = await Promise.all([
-      supabase.from("ativos").select("*, clientes(nome)").order("created_at", { ascending: false }),
+    const [a, c, ct] = await Promise.all([
+      supabase.from("ativos").select("*, clientes(nome), contratos(numero, clientes(nome))").order("created_at", { ascending: false }),
       supabase.from("clientes").select("id, nome").order("nome"),
+      supabase.from("contratos").select("id, numero, cliente_id, clientes(nome)").order("numero"),
     ]);
     if (a.error) toast.error(a.error.message);
-    setItems((a.data ?? []) as any);
+    setItems((a.data ?? []) as unknown as Ativo[]);
     setClientes(c.data ?? []);
+    setContratos((ct.data ?? []) as unknown as ContratoOpt[]);
   }
   useEffect(() => { load(); }, []);
+
 
   function openNew() {
     setEditing(null);

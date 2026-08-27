@@ -258,7 +258,7 @@ function TicketsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Ativo relacionado</Label>
-                <Select value={form.ativo_id} onValueChange={(v) => setForm({ ...form, ativo_id: v })}>
+                <Select value={form.ativo_id} onValueChange={onSelectAtivo}>
                   <SelectTrigger><SelectValue placeholder="Sem ativo" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— Sem ativo —</SelectItem>
@@ -266,6 +266,27 @@ function TicketsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label>Contrato</Label>
+                <Select value={form.contrato_id} onValueChange={(v) => setForm({ ...form, contrato_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sem contrato" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sem contrato (SLA padrão) —</SelectItem>
+                    {contratos.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.numero} — {c.clientes?.nome ?? "—"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="rounded-md border border-border bg-muted/40 p-3 text-xs">
+                <p className="font-medium text-foreground">SLA calculado automaticamente</p>
+                <p className="mt-1 text-muted-foreground">
+                  Severidade <span className="font-semibold text-foreground">{form.prioridade}</span> ·{" "}
+                  {slaHoras}h {contratoSelecionado ? `(contrato ${contratoSelecionado.numero})` : "(padrão R&C)"} · prazo previsto{" "}
+                  <span className="font-semibold text-foreground">{format(previsaoSla, "dd/MM HH:mm", { locale: ptBR })}</span>
+                </p>
+              </div>
+
               <div className="space-y-1.5">
                 <Label>Cliente</Label>
                 <Select value={form.cliente_id} onValueChange={(v) => setForm({ ...form, cliente_id: v })}>

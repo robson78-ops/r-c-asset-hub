@@ -117,9 +117,10 @@ function AtivosPage() {
   }
 
   const filtered = items.filter((a) =>
-    [a.nome, a.marca, a.modelo, a.numero_serial, a.clientes?.nome].filter(Boolean).join(" ")
+    [a.nome, a.marca, a.modelo, a.numero_serial, a.clientes?.nome, a.contratos?.numero].filter(Boolean).join(" ")
       .toLowerCase().includes(search.toLowerCase())
   );
+
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">

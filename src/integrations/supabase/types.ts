@@ -207,28 +207,37 @@ export type Database = {
           acao: string
           autor_id: string | null
           autor_nome: string | null
+          campo: string | null
           comentario: string | null
           created_at: string
           id: string
           ticket_id: string
+          valor_anterior: string | null
+          valor_novo: string | null
         }
         Insert: {
           acao: string
           autor_id?: string | null
           autor_nome?: string | null
+          campo?: string | null
           comentario?: string | null
           created_at?: string
           id?: string
           ticket_id: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
         }
         Update: {
           acao?: string
           autor_id?: string | null
           autor_nome?: string | null
+          campo?: string | null
           comentario?: string | null
           created_at?: string
           id?: string
           ticket_id?: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
         }
         Relationships: [
           {

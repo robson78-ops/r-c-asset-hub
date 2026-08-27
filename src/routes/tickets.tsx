@@ -97,7 +97,7 @@ function TicketsPage() {
 
   function openNew() {
     setEditing(null);
-    setForm({ titulo: "", descricao: "", prioridade: "media", status: "aberto", ativo_id: "none", cliente_id: "none" });
+    setForm({ titulo: "", descricao: "", prioridade: "media", status: "aberto", ativo_id: "none", cliente_id: "none", contrato_id: "none" });
     setOpen(true);
   }
   function openEdit(t: Ticket) {
@@ -106,20 +106,37 @@ function TicketsPage() {
       titulo: t.titulo, descricao: t.descricao ?? "",
       prioridade: t.prioridade, status: t.status,
       ativo_id: t.ativo_id ?? "none", cliente_id: t.cliente_id ?? "none",
+      contrato_id: t.contrato_id ?? "none",
     });
     setOpen(true);
   }
+
+  // Ao escolher o ativo, herda contrato e cliente automaticamente
+  function onSelectAtivo(ativoId: string) {
+    const ativo = ativos.find((x) => x.id === ativoId);
+    setForm((f) => ({
+      ...f,
+      ativo_id: ativoId,
+      contrato_id: ativo?.contrato_id ?? (f.contrato_id === "none" ? "none" : f.contrato_id),
+      cliente_id: ativo?.cliente_id ?? f.cliente_id,
+    }));
+  }
+
+  const contratoSelecionado = contratos.find((c) => c.id === form.contrato_id) ?? null;
+  const slaHoras = horasSla(form.prioridade, contratoSelecionado);
+  const previsaoSla = new Date(Date.now() + slaHoras * 3600_000);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.titulo.trim()) return toast.error("Informe o título do chamado.");
 
-    // Auto-vincula cliente do ativo se houver
+    // Auto-vincula cliente do ativo/contrato se houver
     let cliente_id = form.cliente_id === "none" ? null : form.cliente_id;
-    if (form.ativo_id !== "none" && !cliente_id) {
+    if (!cliente_id && form.ativo_id !== "none") {
       const ativo = ativos.find((x) => x.id === form.ativo_id);
       if (ativo?.cliente_id) cliente_id = ativo.cliente_id;
     }
+    if (!cliente_id && contratoSelecionado) cliente_id = contratoSelecionado.cliente_id;
 
     const payload: any = {
       titulo: form.titulo.trim(),
@@ -127,11 +144,13 @@ function TicketsPage() {
       prioridade: form.prioridade,
       status: form.status,
       ativo_id: form.ativo_id === "none" ? null : form.ativo_id,
+      contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
       cliente_id,
     };
     if (form.status === "resolvido" && (!editing || editing.status !== "resolvido")) {
       payload.resolved_at = new Date().toISOString();
     }
+
 
     if (editing) {
       const { error } = await supabase.from("tickets").update(payload).eq("id", editing.id);

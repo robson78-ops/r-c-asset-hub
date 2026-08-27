@@ -6,7 +6,9 @@ import {
   Users,
   LogOut,
   ShieldCheck,
+  FileSignature,
 } from "lucide-react";
+
 import {
   Sidebar,
   SidebarContent,

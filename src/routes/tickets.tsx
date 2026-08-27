@@ -401,7 +401,16 @@ function TicketsPage() {
                     <span className="font-medium">{h.autor_nome ?? "Sistema"}</span>
                     <span className="text-muted-foreground">{format(new Date(h.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
                   </div>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-primary">{h.acao}</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-wide text-primary">
+                    {h.acao}{h.campo ? ` · ${LABEL_CAMPO[h.campo] ?? h.campo}` : ""}
+                  </p>
+                  {(h.valor_anterior || h.valor_novo) && h.campo !== "ticket" && (
+                    <p className="mt-1.5 text-sm">
+                      <span className="text-muted-foreground line-through">{h.valor_anterior ?? "—"}</span>
+                      <span className="mx-2 text-muted-foreground">→</span>
+                      <span className="font-medium">{h.valor_novo ?? "—"}</span>
+                    </p>
+                  )}
                   {h.comentario && <p className="mt-1.5 text-sm whitespace-pre-wrap">{h.comentario}</p>}
                 </div>
               ))

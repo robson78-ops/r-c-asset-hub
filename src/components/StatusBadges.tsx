@@ -34,3 +34,15 @@ export function PriorityBadge({ priority }: { priority: string }) {
   const v = PRIORITY[priority] ?? { label: priority, cls: "" };
   return <Badge variant="outline" className={cn("font-medium", v.cls)}>{v.label}</Badge>;
 }
+
+const SLA: Record<string, { label: string; cls: string }> = {
+  no_prazo: { label: "No prazo", cls: "bg-success/15 text-success border-success/30" },
+  atencao: { label: "Atenção", cls: "bg-warning/15 text-warning border-warning/30" },
+  estourado: { label: "SLA estourado", cls: "bg-destructive/15 text-destructive border-destructive/40" },
+};
+
+export function SlaBadge({ status }: { status: string }) {
+  const v = SLA[status] ?? { label: status, cls: "" };
+  return <Badge variant="outline" className={cn("font-medium", v.cls)}>{v.label}</Badge>;
+}
+

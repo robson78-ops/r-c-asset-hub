@@ -6,7 +6,9 @@ import {
   Users,
   LogOut,
   ShieldCheck,
+  FileSignature,
 } from "lucide-react";
+
 import {
   Sidebar,
   SidebarContent,
@@ -26,8 +28,10 @@ const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Ativos", url: "/ativos", icon: Server },
   { title: "Suporte", url: "/tickets", icon: Ticket },
+  { title: "Contratos", url: "/contratos", icon: FileSignature },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
+
 
 export function AppSidebar() {
   const location = useLocation();

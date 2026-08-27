@@ -10,13 +10,14 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
       ativos: {
         Row: {
           cliente_id: string | null
+          contrato_id: string | null
           created_at: string
           created_by: string | null
           data_garantia: string | null
@@ -31,6 +32,7 @@ export type Database = {
         }
         Insert: {
           cliente_id?: string | null
+          contrato_id?: string | null
           created_at?: string
           created_by?: string | null
           data_garantia?: string | null
@@ -45,6 +47,7 @@ export type Database = {
         }
         Update: {
           cliente_id?: string | null
+          contrato_id?: string | null
           created_at?: string
           created_by?: string | null
           data_garantia?: string | null
@@ -63,6 +66,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ativos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
             referencedColumns: ["id"]
           },
         ]
@@ -105,6 +115,65 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      contratos: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          descricao: string | null
+          id: string
+          numero: string
+          sla_alta_horas: number
+          sla_baixa_horas: number
+          sla_critica_horas: number
+          sla_media_horas: number
+          status: Database["public"]["Enums"]["contract_status"]
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string | null
+          id?: string
+          numero: string
+          sla_alta_horas?: number
+          sla_baixa_horas?: number
+          sla_critica_horas?: number
+          sla_media_horas?: number
+          status?: Database["public"]["Enums"]["contract_status"]
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string | null
+          id?: string
+          numero?: string
+          sla_alta_horas?: number
+          sla_baixa_horas?: number
+          sla_critica_horas?: number
+          sla_media_horas?: number
+          status?: Database["public"]["Enums"]["contract_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -176,13 +245,16 @@ export type Database = {
           assigned_to: string | null
           ativo_id: string | null
           cliente_id: string | null
+          contrato_id: string | null
           created_at: string
           created_by: string | null
           descricao: string | null
+          due_date: string | null
           id: string
           numero: number
           prioridade: Database["public"]["Enums"]["ticket_priority"]
           resolved_at: string | null
+          sla_status: Database["public"]["Enums"]["sla_status"]
           status: Database["public"]["Enums"]["ticket_status"]
           titulo: string
           updated_at: string
@@ -191,13 +263,16 @@ export type Database = {
           assigned_to?: string | null
           ativo_id?: string | null
           cliente_id?: string | null
+          contrato_id?: string | null
           created_at?: string
           created_by?: string | null
           descricao?: string | null
+          due_date?: string | null
           id?: string
           numero?: number
           prioridade?: Database["public"]["Enums"]["ticket_priority"]
           resolved_at?: string | null
+          sla_status?: Database["public"]["Enums"]["sla_status"]
           status?: Database["public"]["Enums"]["ticket_status"]
           titulo: string
           updated_at?: string
@@ -206,13 +281,16 @@ export type Database = {
           assigned_to?: string | null
           ativo_id?: string | null
           cliente_id?: string | null
+          contrato_id?: string | null
           created_at?: string
           created_by?: string | null
           descricao?: string | null
+          due_date?: string | null
           id?: string
           numero?: number
           prioridade?: Database["public"]["Enums"]["ticket_priority"]
           resolved_at?: string | null
+          sla_status?: Database["public"]["Enums"]["sla_status"]
           status?: Database["public"]["Enums"]["ticket_status"]
           titulo?: string
           updated_at?: string
@@ -230,6 +308,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
             referencedColumns: ["id"]
           },
         ]
@@ -271,6 +356,8 @@ export type Database = {
     Enums: {
       app_role: "admin" | "tecnico" | "usuario"
       asset_status: "ativo" | "manutencao" | "baixado"
+      contract_status: "ativo" | "encerrado"
+      sla_status: "no_prazo" | "atencao" | "estourado"
       ticket_priority: "baixa" | "media" | "alta" | "critica"
       ticket_status:
         | "aberto"
@@ -407,6 +494,8 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "tecnico", "usuario"],
       asset_status: ["ativo", "manutencao", "baixado"],
+      contract_status: ["ativo", "encerrado"],
+      sla_status: ["no_prazo", "atencao", "estourado"],
       ticket_priority: ["baixa", "media", "alta", "critica"],
       ticket_status: [
         "aberto",

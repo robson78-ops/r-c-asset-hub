@@ -15,11 +15,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, Search, Ticket as TicketIcon, History } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { TicketStatusBadge, PriorityBadge } from "@/components/StatusBadges";
+import { TicketStatusBadge, PriorityBadge, SlaBadge } from "@/components/StatusBadges";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -30,21 +32,43 @@ export const Route = createFileRoute("/tickets")({
 
 type Priority = "baixa" | "media" | "alta" | "critica";
 type Status = "aberto" | "em_andamento" | "aguardando" | "resolvido" | "fechado";
+type SlaStatus = "no_prazo" | "atencao" | "estourado";
 
 interface Ticket {
   id: string; numero: number; titulo: string; descricao: string | null;
   prioridade: Priority; status: Status; created_at: string; resolved_at: string | null;
-  ativo_id: string | null; cliente_id: string | null;
+  ativo_id: string | null; cliente_id: string | null; contrato_id: string | null;
+  due_date: string | null; sla_status: SlaStatus;
   ativos?: { nome: string } | null; clientes?: { nome: string } | null;
+  contratos?: { numero: string } | null;
 }
-interface AtivoOpt { id: string; nome: string; cliente_id: string | null; }
+interface AtivoOpt { id: string; nome: string; cliente_id: string | null; contrato_id: string | null; }
 interface ClienteOpt { id: string; nome: string; }
+interface ContratoOpt {
+  id: string; numero: string; cliente_id: string;
+  sla_baixa_horas: number; sla_media_horas: number; sla_alta_horas: number; sla_critica_horas: number;
+  clientes?: { nome: string } | null;
+}
+
+const SLA_PADRAO: Record<Priority, number> = { critica: 4, alta: 8, media: 24, baixa: 72 };
+
+export function horasSla(prioridade: Priority, contrato?: ContratoOpt | null): number {
+  if (!contrato) return SLA_PADRAO[prioridade];
+  const map: Record<Priority, number> = {
+    critica: contrato.sla_critica_horas,
+    alta: contrato.sla_alta_horas,
+    media: contrato.sla_media_horas,
+    baixa: contrato.sla_baixa_horas,
+  };
+  return map[prioridade] ?? SLA_PADRAO[prioridade];
+}
 
 function TicketsPage() {
   const { user, displayName } = useAuth();
   const [items, setItems] = useState<Ticket[]>([]);
   const [ativos, setAtivos] = useState<AtivoOpt[]>([]);
   const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [contratos, setContratos] = useState<ContratoOpt[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [open, setOpen] = useState(false);
@@ -54,25 +78,28 @@ function TicketsPage() {
   const [newComment, setNewComment] = useState("");
   const [form, setForm] = useState({
     titulo: "", descricao: "", prioridade: "media" as Priority, status: "aberto" as Status,
-    ativo_id: "none", cliente_id: "none",
+    ativo_id: "none", cliente_id: "none", contrato_id: "none",
   });
 
   async function load() {
-    const [t, a, c] = await Promise.all([
-      supabase.from("tickets").select("*, ativos(nome), clientes(nome)").order("created_at", { ascending: false }),
-      supabase.from("ativos").select("id, nome, cliente_id").order("nome"),
+    const [t, a, c, ct] = await Promise.all([
+      supabase.from("tickets").select("*, ativos(nome), clientes(nome), contratos(numero)").order("created_at", { ascending: false }),
+      supabase.from("ativos").select("id, nome, cliente_id, contrato_id").order("nome"),
       supabase.from("clientes").select("id, nome").order("nome"),
+      supabase.from("contratos").select("id, numero, cliente_id, sla_baixa_horas, sla_media_horas, sla_alta_horas, sla_critica_horas, clientes(nome)").order("numero"),
     ]);
     if (t.error) toast.error(t.error.message);
-    setItems((t.data ?? []) as any);
-    setAtivos(a.data ?? []);
+    setItems((t.data ?? []) as unknown as Ticket[]);
+    setAtivos((a.data ?? []) as unknown as AtivoOpt[]);
     setClientes(c.data ?? []);
+    setContratos((ct.data ?? []) as unknown as ContratoOpt[]);
   }
   useEffect(() => { load(); }, []);
 
+
   function openNew() {
     setEditing(null);
-    setForm({ titulo: "", descricao: "", prioridade: "media", status: "aberto", ativo_id: "none", cliente_id: "none" });
+    setForm({ titulo: "", descricao: "", prioridade: "media", status: "aberto", ativo_id: "none", cliente_id: "none", contrato_id: "none" });
     setOpen(true);
   }
   function openEdit(t: Ticket) {
@@ -81,20 +108,37 @@ function TicketsPage() {
       titulo: t.titulo, descricao: t.descricao ?? "",
       prioridade: t.prioridade, status: t.status,
       ativo_id: t.ativo_id ?? "none", cliente_id: t.cliente_id ?? "none",
+      contrato_id: t.contrato_id ?? "none",
     });
     setOpen(true);
   }
+
+  // Ao escolher o ativo, herda contrato e cliente automaticamente
+  function onSelectAtivo(ativoId: string) {
+    const ativo = ativos.find((x) => x.id === ativoId);
+    setForm((f) => ({
+      ...f,
+      ativo_id: ativoId,
+      contrato_id: ativo?.contrato_id ?? (f.contrato_id === "none" ? "none" : f.contrato_id),
+      cliente_id: ativo?.cliente_id ?? f.cliente_id,
+    }));
+  }
+
+  const contratoSelecionado = contratos.find((c) => c.id === form.contrato_id) ?? null;
+  const slaHoras = horasSla(form.prioridade, contratoSelecionado);
+  const previsaoSla = new Date(Date.now() + slaHoras * 3600_000);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.titulo.trim()) return toast.error("Informe o título do chamado.");
 
-    // Auto-vincula cliente do ativo se houver
+    // Auto-vincula cliente do ativo/contrato se houver
     let cliente_id = form.cliente_id === "none" ? null : form.cliente_id;
-    if (form.ativo_id !== "none" && !cliente_id) {
+    if (!cliente_id && form.ativo_id !== "none") {
       const ativo = ativos.find((x) => x.id === form.ativo_id);
       if (ativo?.cliente_id) cliente_id = ativo.cliente_id;
     }
+    if (!cliente_id && contratoSelecionado) cliente_id = contratoSelecionado.cliente_id;
 
     const payload: any = {
       titulo: form.titulo.trim(),
@@ -102,11 +146,13 @@ function TicketsPage() {
       prioridade: form.prioridade,
       status: form.status,
       ativo_id: form.ativo_id === "none" ? null : form.ativo_id,
+      contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
       cliente_id,
     };
     if (form.status === "resolvido" && (!editing || editing.status !== "resolvido")) {
       payload.resolved_at = new Date().toISOString();
     }
+
 
     if (editing) {
       const { error } = await supabase.from("tickets").update(payload).eq("id", editing.id);
@@ -214,7 +260,7 @@ function TicketsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Ativo relacionado</Label>
-                <Select value={form.ativo_id} onValueChange={(v) => setForm({ ...form, ativo_id: v })}>
+                <Select value={form.ativo_id} onValueChange={onSelectAtivo}>
                   <SelectTrigger><SelectValue placeholder="Sem ativo" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— Sem ativo —</SelectItem>
@@ -222,6 +268,27 @@ function TicketsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label>Contrato</Label>
+                <Select value={form.contrato_id} onValueChange={(v) => setForm({ ...form, contrato_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sem contrato" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sem contrato (SLA padrão) —</SelectItem>
+                    {contratos.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.numero} — {c.clientes?.nome ?? "—"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="rounded-md border border-border bg-muted/40 p-3 text-xs">
+                <p className="font-medium text-foreground">SLA calculado automaticamente</p>
+                <p className="mt-1 text-muted-foreground">
+                  Severidade <span className="font-semibold text-foreground">{form.prioridade}</span> ·{" "}
+                  {slaHoras}h {contratoSelecionado ? `(contrato ${contratoSelecionado.numero})` : "(padrão R&C)"} · prazo previsto{" "}
+                  <span className="font-semibold text-foreground">{format(previsaoSla, "dd/MM HH:mm", { locale: ptBR })}</span>
+                </p>
+              </div>
+
               <div className="space-y-1.5">
                 <Label>Cliente</Label>
                 <Select value={form.cliente_id} onValueChange={(v) => setForm({ ...form, cliente_id: v })}>
@@ -273,10 +340,11 @@ function TicketsPage() {
                     <TableHead className="w-[70px]">Nº</TableHead>
                     <TableHead>Título</TableHead>
                     <TableHead>Ativo</TableHead>
-                    <TableHead>Cliente</TableHead>
+                    <TableHead>Cliente / Contrato</TableHead>
                     <TableHead>Prioridade</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Aberto em</TableHead>
+                    <TableHead>SLA</TableHead>
+                    <TableHead>Prazo</TableHead>
                     <TableHead className="w-[160px] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -286,10 +354,23 @@ function TicketsPage() {
                       <TableCell className="font-mono text-xs text-muted-foreground">#{t.numero}</TableCell>
                       <TableCell className="font-medium max-w-[280px] truncate">{t.titulo}</TableCell>
                       <TableCell className="text-muted-foreground">{t.ativos?.nome ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{t.clientes?.nome ?? "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">{t.clientes?.nome ?? "—"}</span>
+                          {t.contratos?.numero && (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 font-mono text-[10px]">
+                              {t.contratos.numero}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell><PriorityBadge priority={t.prioridade} /></TableCell>
                       <TableCell><TicketStatusBadge status={t.status} /></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{format(new Date(t.created_at), "dd/MM HH:mm", { locale: ptBR })}</TableCell>
+                      <TableCell><SlaBadge status={t.sla_status} /></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {t.due_date ? format(new Date(t.due_date), "dd/MM HH:mm", { locale: ptBR }) : "—"}
+                      </TableCell>
+
                       <TableCell className="text-right">
                         <Button size="icon" variant="ghost" onClick={() => openHistory(t)} title="Histórico"><History className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>

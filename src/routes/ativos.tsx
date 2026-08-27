@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, Search, Server } from "lucide-react";
 import { toast } from "sonner";
@@ -31,36 +33,43 @@ interface Ativo {
   id: string; nome: string; marca: string | null; modelo: string | null;
   numero_serial: string | null; data_garantia: string | null;
   status: "ativo" | "manutencao" | "baixado"; observacoes: string | null;
-  cliente_id: string | null; clientes?: { nome: string } | null;
+  cliente_id: string | null; contrato_id: string | null;
+  clientes?: { nome: string } | null;
+  contratos?: { numero: string; clientes?: { nome: string } | null } | null;
 }
 interface ClienteOpt { id: string; nome: string; }
+interface ContratoOpt { id: string; numero: string; cliente_id: string; clientes?: { nome: string } | null; }
 
 function AtivosPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<Ativo[]>([]);
   const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [contratos, setContratos] = useState<ContratoOpt[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Ativo | null>(null);
   const [form, setForm] = useState({
     nome: "", marca: "", modelo: "", numero_serial: "", data_garantia: "",
-    status: "ativo" as Ativo["status"], cliente_id: "none", observacoes: "",
+    status: "ativo" as Ativo["status"], cliente_id: "none", contrato_id: "none", observacoes: "",
   });
 
   async function load() {
-    const [a, c] = await Promise.all([
-      supabase.from("ativos").select("*, clientes(nome)").order("created_at", { ascending: false }),
+    const [a, c, ct] = await Promise.all([
+      supabase.from("ativos").select("*, clientes(nome), contratos(numero, clientes(nome))").order("created_at", { ascending: false }),
       supabase.from("clientes").select("id, nome").order("nome"),
+      supabase.from("contratos").select("id, numero, cliente_id, clientes(nome)").order("numero"),
     ]);
     if (a.error) toast.error(a.error.message);
-    setItems((a.data ?? []) as any);
+    setItems((a.data ?? []) as unknown as Ativo[]);
     setClientes(c.data ?? []);
+    setContratos((ct.data ?? []) as unknown as ContratoOpt[]);
   }
   useEffect(() => { load(); }, []);
 
+
   function openNew() {
     setEditing(null);
-    setForm({ nome: "", marca: "", modelo: "", numero_serial: "", data_garantia: "", status: "ativo", cliente_id: "none", observacoes: "" });
+    setForm({ nome: "", marca: "", modelo: "", numero_serial: "", data_garantia: "", status: "ativo", cliente_id: "none", contrato_id: "none", observacoes: "" });
     setOpen(true);
   }
   function openEdit(a: Ativo) {
@@ -68,7 +77,8 @@ function AtivosPage() {
     setForm({
       nome: a.nome, marca: a.marca ?? "", modelo: a.modelo ?? "",
       numero_serial: a.numero_serial ?? "", data_garantia: a.data_garantia ?? "",
-      status: a.status, cliente_id: a.cliente_id ?? "none", observacoes: a.observacoes ?? "",
+      status: a.status, cliente_id: a.cliente_id ?? "none",
+      contrato_id: a.contrato_id ?? "none", observacoes: a.observacoes ?? "",
     });
     setOpen(true);
   }
@@ -76,15 +86,18 @@ function AtivosPage() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.nome.trim()) return toast.error("Informe o nome do equipamento.");
+    const contrato = contratos.find((c) => c.id === form.contrato_id);
     const payload = {
       nome: form.nome.trim(),
       marca: form.marca || null, modelo: form.modelo || null,
       numero_serial: form.numero_serial || null,
       data_garantia: form.data_garantia || null,
       status: form.status,
-      cliente_id: form.cliente_id === "none" ? null : form.cliente_id,
+      cliente_id: form.cliente_id === "none" ? (contrato?.cliente_id ?? null) : form.cliente_id,
+      contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
       observacoes: form.observacoes || null,
     };
+
     if (editing) {
       const { error } = await supabase.from("ativos").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
@@ -104,9 +117,10 @@ function AtivosPage() {
   }
 
   const filtered = items.filter((a) =>
-    [a.nome, a.marca, a.modelo, a.numero_serial, a.clientes?.nome].filter(Boolean).join(" ")
+    [a.nome, a.marca, a.modelo, a.numero_serial, a.clientes?.nome, a.contratos?.numero].filter(Boolean).join(" ")
       .toLowerCase().includes(search.toLowerCase())
   );
+
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -157,7 +171,20 @@ function AtivosPage() {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <Label>Contrato vinculado</Label>
+                <Select value={form.contrato_id} onValueChange={(v) => setForm({ ...form, contrato_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sem contrato" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sem contrato —</SelectItem>
+                    {contratos.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.numero} — {c.clientes?.nome ?? "—"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5"><Label>Observações</Label><Textarea rows={3} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
+
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit">{editing ? "Salvar" : "Cadastrar"}</Button>
@@ -187,7 +214,7 @@ function AtivosPage() {
                     <TableHead>Marca / Modelo</TableHead>
                     <TableHead>Serial</TableHead>
                     <TableHead>Garantia</TableHead>
-                    <TableHead>Cliente</TableHead>
+                    <TableHead>Cliente / Contrato</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[120px] text-right">Ações</TableHead>
                   </TableRow>
@@ -199,8 +226,18 @@ function AtivosPage() {
                       <TableCell className="text-muted-foreground">{[a.marca, a.modelo].filter(Boolean).join(" / ") || "—"}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">{a.numero_serial ?? "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{a.data_garantia ? format(new Date(a.data_garantia), "dd/MM/yyyy") : "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{a.clientes?.nome ?? "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">{a.clientes?.nome ?? a.contratos?.clientes?.nome ?? "—"}</span>
+                          {a.contratos?.numero && (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 font-mono text-[10px]">
+                              {a.contratos.numero}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell><AssetStatusBadge status={a.status} /></TableCell>
+
                       <TableCell className="text-right">
                         <Button size="icon" variant="ghost" onClick={() => openEdit(a)}><Pencil className="h-4 w-4" /></Button>
                         <AlertDialog>

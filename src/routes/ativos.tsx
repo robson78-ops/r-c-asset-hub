@@ -211,7 +211,7 @@ function AtivosPage() {
                     <TableHead>Marca / Modelo</TableHead>
                     <TableHead>Serial</TableHead>
                     <TableHead>Garantia</TableHead>
-                    <TableHead>Cliente</TableHead>
+                    <TableHead>Cliente / Contrato</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[120px] text-right">Ações</TableHead>
                   </TableRow>
@@ -223,8 +223,18 @@ function AtivosPage() {
                       <TableCell className="text-muted-foreground">{[a.marca, a.modelo].filter(Boolean).join(" / ") || "—"}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">{a.numero_serial ?? "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{a.data_garantia ? format(new Date(a.data_garantia), "dd/MM/yyyy") : "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{a.clientes?.nome ?? "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">{a.clientes?.nome ?? a.contratos?.clientes?.nome ?? "—"}</span>
+                          {a.contratos?.numero && (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 font-mono text-[10px]">
+                              {a.contratos.numero}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell><AssetStatusBadge status={a.status} /></TableCell>
+
                       <TableCell className="text-right">
                         <Button size="icon" variant="ghost" onClick={() => openEdit(a)}><Pencil className="h-4 w-4" /></Button>
                         <AlertDialog>

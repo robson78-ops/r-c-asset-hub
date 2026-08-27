@@ -52,6 +52,16 @@ interface ContratoOpt {
 
 const SLA_PADRAO: Record<Priority, number> = { critica: 4, alta: 8, media: 24, baixa: 72 };
 
+const LABEL_CAMPO: Record<string, string> = {
+  prioridade: "Prioridade",
+  status: "Status",
+  ativo: "Ativo vinculado",
+  contrato: "Contrato",
+  sla_status: "Situação do SLA",
+  due_date: "Prazo (SLA)",
+  ticket: "Chamado",
+};
+
 export function horasSla(prioridade: Priority, contrato?: ContratoOpt | null): number {
   if (!contrato) return SLA_PADRAO[prioridade];
   const map: Record<Priority, number> = {

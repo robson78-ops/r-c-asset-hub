@@ -168,7 +168,20 @@ function AtivosPage() {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <Label>Contrato vinculado</Label>
+                <Select value={form.contrato_id} onValueChange={(v) => setForm({ ...form, contrato_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Sem contrato" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sem contrato —</SelectItem>
+                    {contratos.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.numero} — {c.clientes?.nome ?? "—"}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5"><Label>Observações</Label><Textarea rows={3} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
+
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit">{editing ? "Salvar" : "Cadastrar"}</Button>

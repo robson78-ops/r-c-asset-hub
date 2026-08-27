@@ -30,21 +30,43 @@ export const Route = createFileRoute("/tickets")({
 
 type Priority = "baixa" | "media" | "alta" | "critica";
 type Status = "aberto" | "em_andamento" | "aguardando" | "resolvido" | "fechado";
+type SlaStatus = "no_prazo" | "atencao" | "estourado";
 
 interface Ticket {
   id: string; numero: number; titulo: string; descricao: string | null;
   prioridade: Priority; status: Status; created_at: string; resolved_at: string | null;
-  ativo_id: string | null; cliente_id: string | null;
+  ativo_id: string | null; cliente_id: string | null; contrato_id: string | null;
+  due_date: string | null; sla_status: SlaStatus;
   ativos?: { nome: string } | null; clientes?: { nome: string } | null;
+  contratos?: { numero: string } | null;
 }
-interface AtivoOpt { id: string; nome: string; cliente_id: string | null; }
+interface AtivoOpt { id: string; nome: string; cliente_id: string | null; contrato_id: string | null; }
 interface ClienteOpt { id: string; nome: string; }
+interface ContratoOpt {
+  id: string; numero: string; cliente_id: string;
+  sla_baixa_horas: number; sla_media_horas: number; sla_alta_horas: number; sla_critica_horas: number;
+  clientes?: { nome: string } | null;
+}
+
+const SLA_PADRAO: Record<Priority, number> = { critica: 4, alta: 8, media: 24, baixa: 72 };
+
+export function horasSla(prioridade: Priority, contrato?: ContratoOpt | null): number {
+  if (!contrato) return SLA_PADRAO[prioridade];
+  const map: Record<Priority, number> = {
+    critica: contrato.sla_critica_horas,
+    alta: contrato.sla_alta_horas,
+    media: contrato.sla_media_horas,
+    baixa: contrato.sla_baixa_horas,
+  };
+  return map[prioridade] ?? SLA_PADRAO[prioridade];
+}
 
 function TicketsPage() {
   const { user, displayName } = useAuth();
   const [items, setItems] = useState<Ticket[]>([]);
   const [ativos, setAtivos] = useState<AtivoOpt[]>([]);
   const [clientes, setClientes] = useState<ClienteOpt[]>([]);
+  const [contratos, setContratos] = useState<ContratoOpt[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [open, setOpen] = useState(false);
@@ -54,21 +76,24 @@ function TicketsPage() {
   const [newComment, setNewComment] = useState("");
   const [form, setForm] = useState({
     titulo: "", descricao: "", prioridade: "media" as Priority, status: "aberto" as Status,
-    ativo_id: "none", cliente_id: "none",
+    ativo_id: "none", cliente_id: "none", contrato_id: "none",
   });
 
   async function load() {
-    const [t, a, c] = await Promise.all([
-      supabase.from("tickets").select("*, ativos(nome), clientes(nome)").order("created_at", { ascending: false }),
-      supabase.from("ativos").select("id, nome, cliente_id").order("nome"),
+    const [t, a, c, ct] = await Promise.all([
+      supabase.from("tickets").select("*, ativos(nome), clientes(nome), contratos(numero)").order("created_at", { ascending: false }),
+      supabase.from("ativos").select("id, nome, cliente_id, contrato_id").order("nome"),
       supabase.from("clientes").select("id, nome").order("nome"),
+      supabase.from("contratos").select("id, numero, cliente_id, sla_baixa_horas, sla_media_horas, sla_alta_horas, sla_critica_horas, clientes(nome)").order("numero"),
     ]);
     if (t.error) toast.error(t.error.message);
-    setItems((t.data ?? []) as any);
-    setAtivos(a.data ?? []);
+    setItems((t.data ?? []) as unknown as Ticket[]);
+    setAtivos((a.data ?? []) as unknown as AtivoOpt[]);
     setClientes(c.data ?? []);
+    setContratos((ct.data ?? []) as unknown as ContratoOpt[]);
   }
   useEffect(() => { load(); }, []);
+
 
   function openNew() {
     setEditing(null);

@@ -15,11 +15,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, Search, Ticket as TicketIcon, History } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { TicketStatusBadge, PriorityBadge } from "@/components/StatusBadges";
+import { TicketStatusBadge, PriorityBadge, SlaBadge } from "@/components/StatusBadges";
+
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 

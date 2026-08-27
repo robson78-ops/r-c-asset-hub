@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TicketsRouteImport } from './routes/tickets'
+import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtivosRouteImport } from './routes/ativos'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const TicketsRoute = TicketsRouteImport.update({
   id: '/tickets',
   path: '/tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContratosRoute = ContratosRouteImport.update({
+  id: '/contratos',
+  path: '/contratos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientesRoute = ClientesRouteImport.update({
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/ativos': typeof AtivosRoute
   '/auth': typeof AuthRoute
   '/clientes': typeof ClientesRoute
+  '/contratos': typeof ContratosRoute
   '/tickets': typeof TicketsRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/ativos': typeof AtivosRoute
   '/auth': typeof AuthRoute
   '/clientes': typeof ClientesRoute
+  '/contratos': typeof ContratosRoute
   '/tickets': typeof TicketsRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,22 @@ export interface FileRoutesById {
   '/ativos': typeof AtivosRoute
   '/auth': typeof AuthRoute
   '/clientes': typeof ClientesRoute
+  '/contratos': typeof ContratosRoute
   '/tickets': typeof TicketsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/ativos' | '/auth' | '/clientes' | '/tickets'
+  fullPaths: '/' | '/ativos' | '/auth' | '/clientes' | '/contratos' | '/tickets'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/ativos' | '/auth' | '/clientes' | '/tickets'
-  id: '__root__' | '/' | '/ativos' | '/auth' | '/clientes' | '/tickets'
+  to: '/' | '/ativos' | '/auth' | '/clientes' | '/contratos' | '/tickets'
+  id:
+    | '__root__'
+    | '/'
+    | '/ativos'
+    | '/auth'
+    | '/clientes'
+    | '/contratos'
+    | '/tickets'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +92,7 @@ export interface RootRouteChildren {
   AtivosRoute: typeof AtivosRoute
   AuthRoute: typeof AuthRoute
   ClientesRoute: typeof ClientesRoute
+  ContratosRoute: typeof ContratosRoute
   TicketsRoute: typeof TicketsRoute
 }
 
@@ -86,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/tickets'
       fullPath: '/tickets'
       preLoaderRoute: typeof TicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contratos': {
+      id: '/contratos'
+      path: '/contratos'
+      fullPath: '/contratos'
+      preLoaderRoute: typeof ContratosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clientes': {
@@ -124,6 +148,7 @@ const rootRouteChildren: RootRouteChildren = {
   AtivosRoute: AtivosRoute,
   AuthRoute: AuthRoute,
   ClientesRoute: ClientesRoute,
+  ContratosRoute: ContratosRoute,
   TicketsRoute: TicketsRoute,
 }
 export const routeTree = rootRouteImport

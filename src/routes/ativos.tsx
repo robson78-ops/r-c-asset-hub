@@ -67,7 +67,7 @@ function AtivosPage() {
 
   function openNew() {
     setEditing(null);
-    setForm({ nome: "", marca: "", modelo: "", numero_serial: "", data_garantia: "", status: "ativo", cliente_id: "none", observacoes: "" });
+    setForm({ nome: "", marca: "", modelo: "", numero_serial: "", data_garantia: "", status: "ativo", cliente_id: "none", contrato_id: "none", observacoes: "" });
     setOpen(true);
   }
   function openEdit(a: Ativo) {
@@ -75,7 +75,8 @@ function AtivosPage() {
     setForm({
       nome: a.nome, marca: a.marca ?? "", modelo: a.modelo ?? "",
       numero_serial: a.numero_serial ?? "", data_garantia: a.data_garantia ?? "",
-      status: a.status, cliente_id: a.cliente_id ?? "none", observacoes: a.observacoes ?? "",
+      status: a.status, cliente_id: a.cliente_id ?? "none",
+      contrato_id: a.contrato_id ?? "none", observacoes: a.observacoes ?? "",
     });
     setOpen(true);
   }
@@ -83,15 +84,18 @@ function AtivosPage() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!form.nome.trim()) return toast.error("Informe o nome do equipamento.");
+    const contrato = contratos.find((c) => c.id === form.contrato_id);
     const payload = {
       nome: form.nome.trim(),
       marca: form.marca || null, modelo: form.modelo || null,
       numero_serial: form.numero_serial || null,
       data_garantia: form.data_garantia || null,
       status: form.status,
-      cliente_id: form.cliente_id === "none" ? null : form.cliente_id,
+      cliente_id: form.cliente_id === "none" ? (contrato?.cliente_id ?? null) : form.cliente_id,
+      contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
       observacoes: form.observacoes || null,
     };
+
     if (editing) {
       const { error } = await supabase.from("ativos").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);

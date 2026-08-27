@@ -52,6 +52,16 @@ interface ContratoOpt {
 
 const SLA_PADRAO: Record<Priority, number> = { critica: 4, alta: 8, media: 24, baixa: 72 };
 
+const LABEL_CAMPO: Record<string, string> = {
+  prioridade: "Prioridade",
+  status: "Status",
+  ativo: "Ativo vinculado",
+  contrato: "Contrato",
+  sla_status: "Situação do SLA",
+  due_date: "Prazo (SLA)",
+  ticket: "Chamado",
+};
+
 export function horasSla(prioridade: Priority, contrato?: ContratoOpt | null): number {
   if (!contrato) return SLA_PADRAO[prioridade];
   const map: Record<Priority, number> = {
@@ -149,31 +159,17 @@ function TicketsPage() {
       contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
       cliente_id,
     };
-    if (form.status === "resolvido" && (!editing || editing.status !== "resolvido")) {
-      payload.resolved_at = new Date().toISOString();
-    }
-
+    // resolved_at, due_date e sla_status são calculados automaticamente no banco
+    // (inclusive resolução, reabertura e troca de ativo/contrato/prioridade),
+    // assim como o registro de auditoria de cada alteração.
 
     if (editing) {
       const { error } = await supabase.from("tickets").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
-      // Histórico de mudança
-      if (editing.status !== form.status) {
-        await supabase.from("ticket_historico").insert({
-          ticket_id: editing.id, autor_id: user?.id, autor_nome: displayName ?? user?.email,
-          acao: "status_alterado", comentario: `Status: ${editing.status} → ${form.status}`,
-        });
-      }
       toast.success("Chamado atualizado.");
     } else {
-      const { data, error } = await supabase.from("tickets").insert({ ...payload, created_by: user?.id }).select().single();
+      const { error } = await supabase.from("tickets").insert({ ...payload, created_by: user?.id });
       if (error) return toast.error(error.message);
-      if (data) {
-        await supabase.from("ticket_historico").insert({
-          ticket_id: data.id, autor_id: user?.id, autor_nome: displayName ?? user?.email,
-          acao: "criado", comentario: `Chamado aberto com prioridade ${form.prioridade}.`,
-        });
-      }
       toast.success("Chamado aberto.");
     }
     setOpen(false); load();
@@ -415,7 +411,16 @@ function TicketsPage() {
                     <span className="font-medium">{h.autor_nome ?? "Sistema"}</span>
                     <span className="text-muted-foreground">{format(new Date(h.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
                   </div>
-                  <p className="mt-1 text-[11px] uppercase tracking-wide text-primary">{h.acao}</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-wide text-primary">
+                    {h.acao}{h.campo ? ` · ${LABEL_CAMPO[h.campo] ?? h.campo}` : ""}
+                  </p>
+                  {(h.valor_anterior || h.valor_novo) && h.campo !== "ticket" && (
+                    <p className="mt-1.5 text-sm">
+                      <span className="text-muted-foreground line-through">{h.valor_anterior ?? "—"}</span>
+                      <span className="mx-2 text-muted-foreground">→</span>
+                      <span className="font-medium">{h.valor_novo ?? "—"}</span>
+                    </p>
+                  )}
                   {h.comentario && <p className="mt-1.5 text-sm whitespace-pre-wrap">{h.comentario}</p>}
                 </div>
               ))

@@ -338,10 +338,11 @@ function TicketsPage() {
                     <TableHead className="w-[70px]">Nº</TableHead>
                     <TableHead>Título</TableHead>
                     <TableHead>Ativo</TableHead>
-                    <TableHead>Cliente</TableHead>
+                    <TableHead>Cliente / Contrato</TableHead>
                     <TableHead>Prioridade</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Aberto em</TableHead>
+                    <TableHead>SLA</TableHead>
+                    <TableHead>Prazo</TableHead>
                     <TableHead className="w-[160px] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -351,10 +352,23 @@ function TicketsPage() {
                       <TableCell className="font-mono text-xs text-muted-foreground">#{t.numero}</TableCell>
                       <TableCell className="font-medium max-w-[280px] truncate">{t.titulo}</TableCell>
                       <TableCell className="text-muted-foreground">{t.ativos?.nome ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{t.clientes?.nome ?? "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">{t.clientes?.nome ?? "—"}</span>
+                          {t.contratos?.numero && (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 font-mono text-[10px]">
+                              {t.contratos.numero}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell><PriorityBadge priority={t.prioridade} /></TableCell>
                       <TableCell><TicketStatusBadge status={t.status} /></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{format(new Date(t.created_at), "dd/MM HH:mm", { locale: ptBR })}</TableCell>
+                      <TableCell><SlaBadge status={t.sla_status} /></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {t.due_date ? format(new Date(t.due_date), "dd/MM HH:mm", { locale: ptBR }) : "—"}
+                      </TableCell>
+
                       <TableCell className="text-right">
                         <Button size="icon" variant="ghost" onClick={() => openHistory(t)} title="Histórico"><History className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>

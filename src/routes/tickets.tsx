@@ -149,31 +149,17 @@ function TicketsPage() {
       contrato_id: form.contrato_id === "none" ? null : form.contrato_id,
       cliente_id,
     };
-    if (form.status === "resolvido" && (!editing || editing.status !== "resolvido")) {
-      payload.resolved_at = new Date().toISOString();
-    }
-
+    // resolved_at, due_date e sla_status são calculados automaticamente no banco
+    // (inclusive resolução, reabertura e troca de ativo/contrato/prioridade),
+    // assim como o registro de auditoria de cada alteração.
 
     if (editing) {
       const { error } = await supabase.from("tickets").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
-      // Histórico de mudança
-      if (editing.status !== form.status) {
-        await supabase.from("ticket_historico").insert({
-          ticket_id: editing.id, autor_id: user?.id, autor_nome: displayName ?? user?.email,
-          acao: "status_alterado", comentario: `Status: ${editing.status} → ${form.status}`,
-        });
-      }
       toast.success("Chamado atualizado.");
     } else {
-      const { data, error } = await supabase.from("tickets").insert({ ...payload, created_by: user?.id }).select().single();
+      const { error } = await supabase.from("tickets").insert({ ...payload, created_by: user?.id });
       if (error) return toast.error(error.message);
-      if (data) {
-        await supabase.from("ticket_historico").insert({
-          ticket_id: data.id, autor_id: user?.id, autor_nome: displayName ?? user?.email,
-          acao: "criado", comentario: `Chamado aberto com prioridade ${form.prioridade}.`,
-        });
-      }
       toast.success("Chamado aberto.");
     }
     setOpen(false); load();

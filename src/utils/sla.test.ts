@@ -98,6 +98,10 @@ export function calculateSLADueDate(
  * @param dueDate     Data/hora de vencimento calculada.
  * @param resolvedAt  (opcional) Data/hora em que o chamado foi resolvido.
  * @param now         (opcional) Instância de referência para comparação.
+ * @param startDate   (opcional) Data/hora de abertura/reabertura do chamado.
+ *                    Quando informada, a janela total do SLA é calculada como
+ *                    dueDate - startDate, tornando o alerta proporcional ao
+ *                    contrato/prioridade. Sem startDate, usa 24h como fallback.
  * @returns Status do SLA: no_prazo, atencao ou estourado.
  *
  * Regras de negócio:
@@ -110,7 +114,8 @@ export function calculateSLADueDate(
 export function getSLAStatus(
   dueDate: Date,
   resolvedAt: Date | null = null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  startDate?: Date
 ): SLAStatus {
   const reference = resolvedAt ?? now;
 
@@ -118,10 +123,11 @@ export function getSLAStatus(
     return "estourado";
   }
 
-  // O total de tempo do SLA é inferido a partir do due_date e de um ponto
-  // anterior igual ao dobro da distância até o vencimento. Essa heurística
-  // mantém o cálculo independente de uma data de início explícita.
-  const totalWindow = dueDate.getTime() - (dueDate.getTime() - hoursToMs(24));
+  // Janela total do SLA: se startDate fornecida, usa o tempo real do chamado;
+  // caso contrário, assume 24h como referência genérica.
+  const totalWindow = startDate
+    ? dueDate.getTime() - startDate.getTime()
+    : hoursToMs(24);
   const remaining = dueDate.getTime() - reference.getTime();
   const oneHour = hoursToMs(1);
 

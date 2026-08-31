@@ -150,17 +150,31 @@ function Dashboard() {
     { label: "Clientes", value: tipoFiltro === "todos" ? clientes.length : 1, icon: Users, color: "text-primary", bg: "bg-primary/10" },
   ];
 
-  // Ativos por cliente (top 5)
-  const porCliente = useMemo(() => {
-    const map = new Map<string, number>();
+  /**
+   * Ativos alocados por cliente — agregação analítica da tabela `ativos`
+   * (join com `clientes`), com quebra por status e participação percentual
+   * no total do parque filtrado.
+   */
+  const porCliente = useMemo<AtivosPorCliente[]>(() => {
+    const map = new Map<string, AtivosPorCliente>();
     ativosF.forEach((a) => {
       const nome = a.clientes?.nome ?? "Sem cliente";
-      map.set(nome, (map.get(nome) ?? 0) + 1);
+      const item = map.get(nome) ?? { nome, total: 0, ativos: 0, manutencao: 0, baixados: 0, percentual: 0 };
+      item.total += 1;
+      if (a.status === "ativo") item.ativos += 1;
+      else if (a.status === "manutencao") item.manutencao += 1;
+      else item.baixados += 1;
+      map.set(nome, item);
     });
-    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const totalGeral = ativosF.length || 1;
+    return [...map.values()]
+      .map((i) => ({ ...i, percentual: Math.round((i.total / totalGeral) * 100) }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
   }, [ativosF]);
 
-  const maxCliente = porCliente[0]?.[1] ?? 1;
+  const maxCliente = porCliente[0]?.total ?? 1;
+
   const recent = ticketsF.slice(0, 6);
 
   return (

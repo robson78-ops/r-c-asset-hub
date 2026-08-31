@@ -106,7 +106,34 @@ function Dashboard() {
   const abertos = ticketsF.filter((t) => ABERTOS.includes(t.status));
   const fechados = ticketsF.filter((t) => !ABERTOS.includes(t.status));
   const estourados = ticketsF.filter((t) => t.sla_status === "estourado");
-  const slaPct = ticketsF.length === 0 ? 100 : Math.round(((ticketsF.length - estourados.length) / ticketsF.length) * 100);
+
+  /**
+   * Cumprimento de SLA (%) — métrica analítica calculada sobre as colunas
+   * `due_date`, `resolved_at` e `status` da tabela `tickets` (PostgreSQL):
+   *  - Chamados concluídos: cumpre o SLA quando resolved_at <= due_date.
+   *  - Chamados em aberto: cumpre enquanto agora <= due_date.
+   * Apenas tickets com prazo contratual (due_date) entram na base de cálculo.
+   */
+  const sla = useMemo(() => {
+    const agora = Date.now();
+    const elegiveis = ticketsF.filter((t) => t.due_date !== null);
+    const cumpridos = elegiveis.filter((t) => {
+      const prazo = new Date(t.due_date as string).getTime();
+      const concluido = !ABERTOS.includes(t.status);
+      const referencia = concluido && t.resolved_at ? new Date(t.resolved_at).getTime() : agora;
+      return concluido ? referencia <= prazo : agora <= prazo;
+    });
+    const violados = elegiveis.length - cumpridos.length;
+    return {
+      base: elegiveis.length,
+      cumpridos: cumpridos.length,
+      violados,
+      pct: elegiveis.length === 0 ? 100 : Math.round((cumpridos.length / elegiveis.length) * 100),
+    };
+  }, [ticketsF]);
+
+  const slaPct = sla.pct;
+
 
   const inicioMes = new Date();
   inicioMes.setDate(1);

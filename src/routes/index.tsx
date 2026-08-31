@@ -81,7 +81,7 @@ function Dashboard() {
     async function load() {
       const [a, t, ct, cl] = await Promise.all([
         supabase.from("ativos").select("id, status, cliente_id, contrato_id, clientes(nome)"),
-        supabase.from("tickets").select("id, numero, titulo, prioridade, status, sla_status, due_date, created_at, cliente_id, contrato_id, ativos(nome), clientes(nome), contratos(numero)").order("created_at", { ascending: false }),
+        supabase.from("tickets").select("id, numero, titulo, prioridade, status, sla_status, due_date, resolved_at, created_at, cliente_id, contrato_id, ativos(nome), clientes(nome), contratos(numero)").order("created_at", { ascending: false }),
         supabase.from("contratos").select("id, numero, cliente_id, clientes(nome)").order("numero"),
         supabase.from("clientes").select("id, nome").order("nome"),
       ]);

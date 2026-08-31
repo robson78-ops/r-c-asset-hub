@@ -361,6 +361,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      reset_demo_data: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "admin" | "tecnico" | "usuario"

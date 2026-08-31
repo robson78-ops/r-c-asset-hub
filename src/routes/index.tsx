@@ -46,6 +46,7 @@ interface TicketRow {
   status: "aberto" | "em_andamento" | "aguardando" | "resolvido" | "fechado";
   sla_status: "no_prazo" | "atencao" | "estourado";
   due_date: string | null;
+  resolved_at: string | null;
   created_at: string;
   cliente_id: string | null;
   contrato_id: string | null;
@@ -55,6 +56,17 @@ interface TicketRow {
 }
 interface ContratoRow { id: string; numero: string; cliente_id: string; clientes?: { nome: string } | null; }
 interface ClienteRow { id: string; nome: string; }
+
+/** Métrica analítica de distribuição de ativos por cliente. */
+interface AtivosPorCliente {
+  nome: string;
+  total: number;
+  ativos: number;
+  manutencao: number;
+  baixados: number;
+  percentual: number;
+}
+
 
 const ABERTOS = ["aberto", "em_andamento", "aguardando"];
 
@@ -69,7 +81,7 @@ function Dashboard() {
     async function load() {
       const [a, t, ct, cl] = await Promise.all([
         supabase.from("ativos").select("id, status, cliente_id, contrato_id, clientes(nome)"),
-        supabase.from("tickets").select("id, numero, titulo, prioridade, status, sla_status, due_date, created_at, cliente_id, contrato_id, ativos(nome), clientes(nome), contratos(numero)").order("created_at", { ascending: false }),
+        supabase.from("tickets").select("id, numero, titulo, prioridade, status, sla_status, due_date, resolved_at, created_at, cliente_id, contrato_id, ativos(nome), clientes(nome), contratos(numero)").order("created_at", { ascending: false }),
         supabase.from("contratos").select("id, numero, cliente_id, clientes(nome)").order("numero"),
         supabase.from("clientes").select("id, nome").order("nome"),
       ]);
@@ -94,7 +106,34 @@ function Dashboard() {
   const abertos = ticketsF.filter((t) => ABERTOS.includes(t.status));
   const fechados = ticketsF.filter((t) => !ABERTOS.includes(t.status));
   const estourados = ticketsF.filter((t) => t.sla_status === "estourado");
-  const slaPct = ticketsF.length === 0 ? 100 : Math.round(((ticketsF.length - estourados.length) / ticketsF.length) * 100);
+
+  /**
+   * Cumprimento de SLA (%) — métrica analítica calculada sobre as colunas
+   * `due_date`, `resolved_at` e `status` da tabela `tickets` (PostgreSQL):
+   *  - Chamados concluídos: cumpre o SLA quando resolved_at <= due_date.
+   *  - Chamados em aberto: cumpre enquanto agora <= due_date.
+   * Apenas tickets com prazo contratual (due_date) entram na base de cálculo.
+   */
+  const sla = useMemo(() => {
+    const agora = Date.now();
+    const elegiveis = ticketsF.filter((t) => t.due_date !== null);
+    const cumpridos = elegiveis.filter((t) => {
+      const prazo = new Date(t.due_date as string).getTime();
+      const concluido = !ABERTOS.includes(t.status);
+      const referencia = concluido && t.resolved_at ? new Date(t.resolved_at).getTime() : agora;
+      return concluido ? referencia <= prazo : agora <= prazo;
+    });
+    const violados = elegiveis.length - cumpridos.length;
+    return {
+      base: elegiveis.length,
+      cumpridos: cumpridos.length,
+      violados,
+      pct: elegiveis.length === 0 ? 100 : Math.round((cumpridos.length / elegiveis.length) * 100),
+    };
+  }, [ticketsF]);
+
+  const slaPct = sla.pct;
+
 
   const inicioMes = new Date();
   inicioMes.setDate(1);
@@ -111,17 +150,31 @@ function Dashboard() {
     { label: "Clientes", value: tipoFiltro === "todos" ? clientes.length : 1, icon: Users, color: "text-primary", bg: "bg-primary/10" },
   ];
 
-  // Ativos por cliente (top 5)
-  const porCliente = useMemo(() => {
-    const map = new Map<string, number>();
+  /**
+   * Ativos alocados por cliente — agregação analítica da tabela `ativos`
+   * (join com `clientes`), com quebra por status e participação percentual
+   * no total do parque filtrado.
+   */
+  const porCliente = useMemo<AtivosPorCliente[]>(() => {
+    const map = new Map<string, AtivosPorCliente>();
     ativosF.forEach((a) => {
       const nome = a.clientes?.nome ?? "Sem cliente";
-      map.set(nome, (map.get(nome) ?? 0) + 1);
+      const item = map.get(nome) ?? { nome, total: 0, ativos: 0, manutencao: 0, baixados: 0, percentual: 0 };
+      item.total += 1;
+      if (a.status === "ativo") item.ativos += 1;
+      else if (a.status === "manutencao") item.manutencao += 1;
+      else item.baixados += 1;
+      map.set(nome, item);
     });
-    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const totalGeral = ativosF.length || 1;
+    return [...map.values()]
+      .map((i) => ({ ...i, percentual: Math.round((i.total / totalGeral) * 100) }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
   }, [ativosF]);
 
-  const maxCliente = porCliente[0]?.[1] ?? 1;
+  const maxCliente = porCliente[0]?.total ?? 1;
+
   const recent = ticketsF.slice(0, 6);
 
   return (
@@ -184,7 +237,10 @@ function Dashboard() {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Resolvidos no mês: {ticketsF.filter((t) => t.status === "resolvido" && new Date(t.created_at) >= inicioMes).length}
+              Base de cálculo: {sla.base} chamado(s) com prazo contratual · {sla.cumpridos} dentro do prazo · {sla.violados} violado(s)
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Resolvidos no mês: {ticketsF.filter((t) => t.status === "resolvido" && new Date(t.resolved_at ?? t.created_at) >= inicioMes).length}
             </p>
           </CardContent>
         </Card>
@@ -197,13 +253,16 @@ function Dashboard() {
           <CardContent className="space-y-3">
             {porCliente.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Nenhum ativo no filtro selecionado.</p>
-            ) : porCliente.map(([nome, qtd]) => (
-              <div key={nome} className="space-y-1">
+            ) : porCliente.map((c) => (
+              <div key={c.nome} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="truncate">{nome}</span>
-                  <span className="font-medium tabular-nums">{qtd}</span>
+                  <span className="truncate">{c.nome}</span>
+                  <span className="font-medium tabular-nums">{c.total} · {c.percentual}%</span>
                 </div>
-                <Progress value={(qtd / maxCliente) * 100} />
+                <Progress value={(c.total / maxCliente) * 100} />
+                <p className="text-xs text-muted-foreground">
+                  {c.ativos} em operação · {c.manutencao} em manutenção · {c.baixados} baixado(s)
+                </p>
               </div>
             ))}
           </CardContent>

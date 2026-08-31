@@ -46,6 +46,7 @@ interface TicketRow {
   status: "aberto" | "em_andamento" | "aguardando" | "resolvido" | "fechado";
   sla_status: "no_prazo" | "atencao" | "estourado";
   due_date: string | null;
+  resolved_at: string | null;
   created_at: string;
   cliente_id: string | null;
   contrato_id: string | null;
@@ -55,6 +56,17 @@ interface TicketRow {
 }
 interface ContratoRow { id: string; numero: string; cliente_id: string; clientes?: { nome: string } | null; }
 interface ClienteRow { id: string; nome: string; }
+
+/** Métrica analítica de distribuição de ativos por cliente. */
+interface AtivosPorCliente {
+  nome: string;
+  total: number;
+  ativos: number;
+  manutencao: number;
+  baixados: number;
+  percentual: number;
+}
+
 
 const ABERTOS = ["aberto", "em_andamento", "aguardando"];
 

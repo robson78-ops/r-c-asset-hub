@@ -237,7 +237,10 @@ function Dashboard() {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Resolvidos no mês: {ticketsF.filter((t) => t.status === "resolvido" && new Date(t.created_at) >= inicioMes).length}
+              Base de cálculo: {sla.base} chamado(s) com prazo contratual · {sla.cumpridos} dentro do prazo · {sla.violados} violado(s)
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Resolvidos no mês: {ticketsF.filter((t) => t.status === "resolvido" && new Date(t.resolved_at ?? t.created_at) >= inicioMes).length}
             </p>
           </CardContent>
         </Card>

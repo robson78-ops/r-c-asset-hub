@@ -222,10 +222,17 @@ describe("SLA Utilities", () => {
 
     test("considera resolvedAt ao invés de now quando chamado foi resolvido", () => {
       const due = new Date("2026-08-31T17:00:00.000Z");
-      const resolvedAt = new Date("2026-08-31T16:00:00.000Z");
+      const resolvedAt = new Date("2026-08-31T14:00:00.000Z"); // 3h antes do vencimento
       const now = new Date("2026-09-01T10:00:00.000Z"); // depois do vencimento
 
+      // Mesmo com "now" após o vencimento, o status deve refletir a resolução.
       expect(getSLAStatus(due, resolvedAt, now)).toBe("no_prazo");
+    });
+
+    test("resolução próxima ao vencimento mantém status 'atencao'", () => {
+      const due = new Date("2026-08-31T17:00:00.000Z");
+      const resolvedAt = new Date("2026-08-31T16:00:00.000Z"); // 1h antes
+      expect(getSLAStatus(due, resolvedAt)).toBe("atencao");
     });
 
     test("retorna 'estourado' quando resolvido após o vencimento", () => {

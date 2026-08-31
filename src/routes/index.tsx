@@ -253,13 +253,16 @@ function Dashboard() {
           <CardContent className="space-y-3">
             {porCliente.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Nenhum ativo no filtro selecionado.</p>
-            ) : porCliente.map(([nome, qtd]) => (
-              <div key={nome} className="space-y-1">
+            ) : porCliente.map((c) => (
+              <div key={c.nome} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="truncate">{nome}</span>
-                  <span className="font-medium tabular-nums">{qtd}</span>
+                  <span className="truncate">{c.nome}</span>
+                  <span className="font-medium tabular-nums">{c.total} · {c.percentual}%</span>
                 </div>
-                <Progress value={(qtd / maxCliente) * 100} />
+                <Progress value={(c.total / maxCliente) * 100} />
+                <p className="text-xs text-muted-foreground">
+                  {c.ativos} em operação · {c.manutencao} em manutenção · {c.baixados} baixado(s)
+                </p>
               </div>
             ))}
           </CardContent>

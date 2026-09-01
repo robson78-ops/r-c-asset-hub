@@ -49,7 +49,7 @@ export function AppSidebar() {
             <ShieldCheck className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-bold tracking-tight">SGASD</span>
+            <span className="text-sm font-bold tracking-tight">SGASD 2.0</span>
             <span className="text-[10px] text-muted-foreground">R&C Consultoria</span>
           </div>
         </div>
